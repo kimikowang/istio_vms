@@ -18,11 +18,17 @@ import (
 	"bytes"
 )
 
+const (
+	DefaultType  = "TCP"
+	DefaultValue = "localhost:80"
+)
+
 // Endpoint represents a network endpoint.
 // Immutable by convention.
 type Endpoint struct {
-	Type  string
-	Value string
+	Type        string
+	Value       string
+	ServicePort *Port
 }
 
 func (e *Endpoint) String() string {
@@ -34,5 +40,13 @@ func (e *Endpoint) String() string {
 // DeepClone creates a deep copy of the receiver
 func (e *Endpoint) DeepClone() *Endpoint {
 	cloned := *e
+	if e.Type == "" {
+		cloned.Type = DefaultType
+	}
+
+	if e.Value == "" {
+		cloned.Value = DefaultValue
+	}
+	cloned.ServicePort = e.ServicePort.DeepClone()
 	return &cloned
 }

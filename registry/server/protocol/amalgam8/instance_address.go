@@ -35,7 +35,7 @@ const (
 type InstanceAddress struct {
 	Type  string `json:"type,omitempty"` // possible values: { tcp, udp, http, https, user}
 	Value string `json:"value"`          // can't be empty string, or consists of only spaces
-
+	ServicePort *Port `json:"service_port"`
 }
 
 // String output the structure

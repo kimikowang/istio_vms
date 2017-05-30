@@ -55,6 +55,7 @@ type Config struct {
 type Client struct {
 	config     Config
 	httpClient *http.Client
+	fullService bool
 	debug      bool
 }
 
@@ -77,6 +78,7 @@ func New(config Config) (*Client, error) {
 			Timeout: defaultTimeout,
 		}
 	}
+
 	return client, nil
 }
 
@@ -118,6 +120,7 @@ func (client *Client) Renew(id string) error {
 
 // ListServices queries for the list of services for which instances are currently registered.
 func (client *Client) ListServices() ([]string, error) {
+	client.fullService = false
 	body, err := client.doRequest("GET", amalgam8.ServiceNamesURL(), nil, http.StatusOK)
 	if err != nil {
 		return nil, err
@@ -125,6 +128,40 @@ func (client *Client) ListServices() ([]string, error) {
 
 	s := struct {
 		Services []string `json:"services"`
+	}{}
+	err = json.Unmarshal(body, &s)
+	if err != nil {
+		return nil, newError(ErrorCodeInternalClientError, "error unmarshaling HTTP response body", err, "")
+	}
+	return s.Services, nil
+}
+
+func (client *Client) ListServiceObjects() ([]*api.Service, error) {
+	return client.ListServicesWithFilter(InstanceFilter{})
+}
+
+func (client *Client) GetServiceObject(serviceName string) ([]*api.Service, error) {
+	return client.ListServicesWithFilter(InstanceFilter{
+		ServiceName: serviceName,
+	})
+}
+
+func (client *Client) ListServicesWithFilter(filter InstanceFilter) ([]*api.Service, error) {
+	path := amalgam8.ServiceNamesURL()
+	queryParams := filter.asQueryParams()
+	if len(queryParams) > 0 {
+		path = fmt.Sprintf("%s?%s", path, queryParams.Encode())
+	}
+
+	client.fullService = true
+	body, err := client.doRequest("GET", path, nil, http.StatusOK)
+	if err != nil {
+		fmt.Println("Error in List Service With Filter: ", err)
+		return nil, err
+	}
+
+	s := struct {
+		Services []*api.Service `json:"services"`
 	}{}
 	err = json.Unmarshal(body, &s)
 	if err != nil {
@@ -187,6 +224,11 @@ func (client *Client) doRequest(method string, path string, body interface{}, st
 	// Add authorization header
 	if client.config.AuthToken != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.config.AuthToken))
+	}
+	if client.fullService {
+		req.Header.Set("RequestFullService", "true")
+	} else {
+		req.Header.Set("RequestFullService", "false")
 	}
 
 	if body != nil {

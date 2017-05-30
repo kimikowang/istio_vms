@@ -19,6 +19,21 @@ import (
 	"time"
 )
 
+type Port struct {
+	Name string `json:"name"`
+	Port int `json:"port,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+}
+
+type PortList []*Port
+
+type Service struct {
+	ServiceName string `json:"service_name"`
+	Address string `json:"address,omitempty"`
+	Ports PortList `json:"ports,omitempty"`
+	ExternalName string `json:"external,omitempty"`
+}
+
 // ServiceInstance describes an instance of a service.
 type ServiceInstance struct {
 
@@ -27,6 +42,8 @@ type ServiceInstance struct {
 
 	// ServiceName is the name of the service being provided by this service instance.
 	ServiceName string `json:"service_name,omitempty"`
+
+	Service Service `json:"service"`
 
 	// Endpoint is the network endpoint of this service instance.
 	Endpoint ServiceEndpoint `json:"endpoint,omitempty"`

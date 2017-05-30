@@ -31,6 +31,7 @@ const (
 type ServiceInstance struct {
 	ID               string
 	ServiceName      string
+	Service          *Service
 	Endpoint         *Endpoint
 	Status           string
 	Metadata         []byte
@@ -50,6 +51,7 @@ func (si *ServiceInstance) String() string {
 // DeepClone creates a deep copy of the receiver
 func (si *ServiceInstance) DeepClone() *ServiceInstance {
 	cloned := *si
+	cloned.Service = si.Service.DeepClone()
 	cloned.Endpoint = si.Endpoint.DeepClone()
 	if si.Metadata == nil || len(si.Metadata) == 0 {
 		cloned.Metadata = nil

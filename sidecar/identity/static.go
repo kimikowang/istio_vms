@@ -53,10 +53,20 @@ func (sp *staticProvider) GetIdentity() (*api.ServiceInstance, error) {
 
 	return &api.ServiceInstance{
 		ServiceName: sp.conf.Service.Name,
+		Service: api.Service{
+			ServiceName: sp.conf.Service.Name,
+			Address: sp.conf.Service.Address,
+			ExternalName: sp.conf.Service.ExternalName,
+		},
 		Tags:        sp.conf.Service.Tags,
 		Endpoint: api.ServiceEndpoint{
 			Type:  sp.conf.Endpoint.Type,
 			Value: addr,
+			ServicePort: api.Port{
+				Name: sp.conf.ServicePort.Name,
+				Port: sp.conf.ServicePort.Port,
+				Protocol: sp.conf.ServicePort.Protocol,
+			},
 		},
 	}, nil
 }

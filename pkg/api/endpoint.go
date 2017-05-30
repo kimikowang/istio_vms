@@ -23,4 +23,6 @@ type ServiceEndpoint struct {
 	// Value is the endpoint's value according to its type,
 	// e.g. "172.135.10.1:8080" or "http://myapp.ng.bluemix.net/api/v1".
 	Value string `json:"value"`
+
+	ServicePort Port `json:"service_port"`
 }

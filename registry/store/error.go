@@ -28,11 +28,15 @@ const (
 	ErrorNoSuchServiceInstance
 	ErrorNamespaceQuotaExceeded
 	ErrorInternalServerError
+	ErrorNoServicePortName
 	ErrorNoInstanceServiceName
 	ErrorInstanceServiceNameTooLong
 	ErrorInstanceEndpointValueTooLong
 	ErrorInstanceStatusLengthTooLong
 	ErrorInstanceMetaDataTooLong
+	ErrorAddressMismatched
+	ErrorExternalNameMismatched
+	ErrorServicePortMismatched
 )
 
 // Error is an error implementation that is associated with an ErrorCode

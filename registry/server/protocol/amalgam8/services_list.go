@@ -18,3 +18,7 @@ package amalgam8
 type ServicesList struct {
 	Services []string `json:"services"`
 }
+
+type ServiceObjectsList struct {
+	Services []*Service `json:"services"`
+}

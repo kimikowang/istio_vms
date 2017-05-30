@@ -95,6 +95,17 @@ func (routes *Routes) getServiceInstances(w rest.ResponseWriter, r *rest.Request
 }
 
 func (routes *Routes) listServices(w rest.ResponseWriter, r *rest.Request) {
+	sc, err := newSelectCriteria(r)
+	if err != nil {
+		routes.logger.WithFields(log.Fields{
+			"namespace": r.Env[env.Namespace],
+			"error":     err,
+		}).Error("Failed to list services")
+
+		i18n.Error(r, w, http.StatusBadRequest, i18n.ErrorFilterSelectionCriteria)
+		return
+	}
+
 	catalog := routes.catalog(w, r)
 	if catalog == nil {
 		routes.logger.WithFields(log.Fields{
@@ -105,7 +116,7 @@ func (routes *Routes) listServices(w rest.ResponseWriter, r *rest.Request) {
 		return
 	}
 
-	services := catalog.ListServices(nil)
+	services := catalog.ListServices(sc.instanceFilter)
 	if services == nil {
 		routes.logger.WithFields(log.Fields{
 			"namespace": r.Env[env.Namespace],
@@ -115,13 +126,35 @@ func (routes *Routes) listServices(w rest.ResponseWriter, r *rest.Request) {
 		i18n.Error(r, w, http.StatusInternalServerError, i18n.ErrorServiceEnumeration)
 		return
 	}
-	listRes := &ServicesList{Services: make([]string, len(services), len(services))}
 
-	for index, svc := range services {
-		listRes.Services[index] = svc.ServiceName
+	if r.Header.Get("RequestFullService") == "true" {
+		listRes := &ServiceObjectsList{Services: make([]*Service, len(services), len(services))}
+
+		for index, svc := range services {
+			copied, err := copyServiceObject(svc)
+			if err != nil {
+				routes.logger.WithFields(log.Fields{
+					"namespace": r.Env[env.Namespace],
+					"error":     err,
+				}).Warnf("Failed to lookup service %s", svc.ServiceName)
+
+				i18n.Error(r, w, http.StatusInternalServerError, i18n.ErrorFilterGeneric)
+				return
+			}
+			listRes.Services[index] = copied
+		}
+
+		err = w.WriteJson(listRes)
+	} else {
+		listRes := &ServicesList{Services: make([]string, len(services), len(services))}
+
+		for index, svc := range services {
+			listRes.Services[index] = svc.ServiceName
+		}
+
+		err = w.WriteJson(listRes)
 	}
 
-	err := w.WriteJson(listRes)
 	if err != nil {
 		routes.logger.WithFields(log.Fields{
 			"namespace": r.Env[env.Namespace],
@@ -134,5 +167,5 @@ func (routes *Routes) listServices(w rest.ResponseWriter, r *rest.Request) {
 
 	routes.logger.WithFields(log.Fields{
 		"namespace": r.Env[env.Namespace],
-	}).Infof("List services (%d)", len(listRes.Services))
+	}).Infof("List services (%d)", len(services))
 }

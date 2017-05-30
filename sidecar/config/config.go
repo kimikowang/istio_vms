@@ -63,7 +63,9 @@ type Command struct {
 // Service configuration
 type Service struct {
 	Name string   `yaml:"name"`
+	Address string `yaml:"address,omitempty"`
 	Tags []string `yaml:"tags"`
+	ExternalName string `yaml:"external_name,omitempty"`
 }
 
 // Endpoint configuration
@@ -71,6 +73,13 @@ type Endpoint struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
 	Type string `yaml:"type"`
+}
+
+// ServicePort configuration
+type ServicePort struct {
+	Name string `yaml:"name"`
+	Port int `yaml:"port,omitempty"`
+	Protocol string `yaml:"protocol,omitempty"`
 }
 
 // Dnsconfig - DNS server configuration
@@ -150,6 +159,7 @@ type Config struct {
 
 	Service  Service  `yaml:"service"`
 	Endpoint Endpoint `yaml:"endpoint"`
+	ServicePort ServicePort `yaml:"service_port"`
 
 	DiscoveryAdapter string `yaml:"discovery_adapter"`
 	RulesAdapter     string `yaml:"rules_adapter"`

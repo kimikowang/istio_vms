@@ -39,6 +39,8 @@ var DefaultConfig = Config{
 
 	Service: Service{
 		Name: "",
+		Address: "",
+		ExternalName: "",
 		Tags: nil,
 	},
 
@@ -46,6 +48,12 @@ var DefaultConfig = Config{
 		Host: "",
 		Port: 0,
 		Type: "http",
+	},
+
+	ServicePort: ServicePort{
+		Name: "",
+		Port: 0,
+		Protocol: "",
 	},
 
 	DiscoveryAdapter: Amalgam8Adapter,

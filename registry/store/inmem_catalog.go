@@ -50,10 +50,11 @@ func (f *inMemoryFactory) CreateCatalog(namespace auth.Namespace) (Catalog, erro
 type inMemoryService map[string]*ServiceInstance
 
 type inMemoryCatalog struct {
-	services  map[string]inMemoryService
-	instances map[string]*ServiceInstance
-	conf      *inMemoryConfig
-	logger    *log.Entry
+	services       map[string]inMemoryService
+	instances      map[string]*ServiceInstance
+	serviceObjects map[string]*Service
+	conf           *inMemoryConfig
+	logger         *log.Entry
 
 	// Metrics
 	instancesMetric         metrics.Counter
@@ -77,10 +78,11 @@ func newInMemoryCatalog(conf *inMemoryConfig) *inMemoryCatalog {
 	histogramFactory := func() metrics.Histogram { return metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015)) }
 
 	catalog := &inMemoryCatalog{
-		services:  make(map[string]inMemoryService),
-		instances: make(map[string]*ServiceInstance),
-		conf:      conf,
-		logger:    logging.GetLogger(module),
+		services:      make(map[string]inMemoryService),
+		instances:     make(map[string]*ServiceInstance),
+		serviceObjects: make(map[string]*Service),
+		conf:          conf,
+		logger:        logging.GetLogger(module),
 
 		instancesMetric:         metrics.GetOrRegister(instancesMetricName, counterFactory).(metrics.Counter),
 		expirationMetric:        metrics.GetOrRegister(expirationMetricName, meterFactory).(metrics.Meter),
@@ -97,6 +99,10 @@ func (imc *inMemoryCatalog) Register(si *ServiceInstance) (*ServiceInstance, err
 	serviceName := si.ServiceName
 	if serviceName == "" {
 		return nil, NewError(ErrorNoInstanceServiceName, "Service name value was not specified", "")
+	}
+
+	if si.Endpoint.ServicePort.Name == "" {
+		return nil, NewError(ErrorNoServicePortName, "Service Port name was not specified", "")
 	}
 
 	if len(serviceName) > ServiceNameMaxLength {
@@ -156,12 +162,41 @@ func (imc *inMemoryCatalog) Register(si *ServiceInstance) (*ServiceInstance, err
 
 	}
 
+	svcPort := newSI.Endpoint.ServicePort
 	service, exists := imc.services[serviceName]
 	if !exists {
 		service = make(map[string]*ServiceInstance)
 		imc.services[serviceName] = service
+		// create new Service object
+		imc.serviceObjects[serviceName] = newSI.Service
+		imc.serviceObjects[serviceName].PutPort(svcPort)
+	} else {
+		//Check validity of newly provided Service info and add it to
+		// existing service if necessary
+		existingService := imc.serviceObjects[serviceName]
+		if newSI.Service.Address != existingService.Address {
+			return nil, NewError(ErrorAddressMismatched, "Address in new Service does not match one in store", "")
+		}
+
+		if newSI.Service.ExternalName != existingService.ExternalName {
+			return nil, NewError(ErrorExternalNameMismatched, "ExternalName in new Service does not match one in store", "")
+		}
+
+		// Check ServicePort in the Instance to make sure no crash in info
+		existingPort, exists := existingService.Ports.Get(svcPort.Name)
+		if !exists {
+			existingService.PutPort(svcPort)
+		} else if !existingPort.Equals(svcPort) {
+			return nil, NewError(ErrorServicePortMismatched, "The Service Port in request already existed in store", "")
+		} else {
+			newSI.Endpoint.ServicePort = existingPort
+		}
+
+		// Make the service point to ones stored in map
+		newSI.Service = imc.serviceObjects[serviceName]
 	}
 
+	imc.logger.Info("Ports length for latest registered Service:", len(imc.serviceObjects[serviceName].Ports))
 	service[instanceID] = newSI
 	imc.instances[instanceID] = newSI
 
@@ -263,7 +298,8 @@ func (imc *inMemoryCatalog) List(serviceName string, predicate Predicate) ([]*Se
 	instanceCollection := make([]*ServiceInstance, 0, len(service))
 	for _, instance := range service {
 		if predicate == nil || predicate(instance) {
-			instanceCollection = append(instanceCollection, instance.DeepClone())
+			cloned := instance.DeepClone()
+			instanceCollection = append(instanceCollection, cloned)
 		}
 	}
 
@@ -290,7 +326,7 @@ func (imc *inMemoryCatalog) ListServices(predicate Predicate) []*Service {
 	for service, instances := range imc.services {
 		for _, instance := range instances {
 			if predicate == nil || predicate(instance) {
-				services = append(services, &Service{ServiceName: service})
+				services = append(services, imc.serviceObjects[service].DeepClone())
 				break
 			}
 		}
@@ -350,6 +386,7 @@ func (imc *inMemoryCatalog) delete(instanceID string) *ServiceInstance {
 	delete(imc.services[serviceName], instanceID)
 	if len(imc.services[serviceName]) == 0 {
 		delete(imc.services, serviceName)
+		delete(imc.serviceObjects, serviceName)
 	}
 
 	delete(imc.instances, instanceID)

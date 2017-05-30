@@ -103,6 +103,10 @@ func (agent *RegistrationAgent) register() {
 		logrus.Debug("Attempting to register service with Amalgam8")
 
 		instance, err := agent.config.Identity.GetIdentity()
+
+		logrus.WithFields(logrus.Fields{
+			"port_name": instance.Endpoint.ServicePort.Name,
+		}).Info("Service Port Name at register agent")
 		if err == nil {
 			if instance.TTL == 0 {
 				instance.TTL = int(DefaultTTL.Seconds())

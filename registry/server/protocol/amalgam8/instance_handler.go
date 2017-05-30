@@ -29,7 +29,6 @@ import (
 	"github.com/amalgam8/amalgam8/registry/server/middleware"
 	"github.com/amalgam8/amalgam8/registry/store"
 	"github.com/amalgam8/amalgam8/registry/utils/i18n"
-	"github.com/amalgam8/amalgam8/registry/utils/reflection"
 )
 
 var instanceQueryValuesToFieldNames = make(map[string]string)
@@ -59,7 +58,20 @@ func (routes *Routes) registerInstance(w rest.ResponseWriter, r *rest.Request) {
 
 	si := &store.ServiceInstance{
 		ServiceName: req.ServiceName,
-		Endpoint:    &store.Endpoint{Type: req.Endpoint.Type, Value: req.Endpoint.Value},
+		Service: &store.Service{
+			ServiceName: req.Service.ServiceName,
+			Address: req.Service.Address,
+			ExternalName: req.Service.ExternalName,
+		},
+		Endpoint:    &store.Endpoint{
+			Type: req.Endpoint.Type,
+			Value: req.Endpoint.Value,
+			ServicePort: &store.Port{
+				Name: req.Endpoint.ServicePort.Name,
+				Port: req.Endpoint.ServicePort.Port,
+				Protocol: req.Endpoint.ServicePort.Protocol,
+			},
+		},
 		Status:      strings.ToUpper(req.Status),
 		TTL:         time.Duration(req.TTL) * time.Second,
 		Metadata:    req.Metadata,
@@ -418,87 +430,3 @@ func (routes *Routes) listInstances(w rest.ResponseWriter, r *rest.Request) {
 	}).Infof("Lookup instances (%d)", len(insts))
 }
 
-func statusCodeFromError(err error) int {
-	if regerr, ok := err.(*store.Error); ok {
-		switch regerr.Code {
-		case store.ErrorBadRequest:
-			return http.StatusBadRequest
-		case store.ErrorNoSuchServiceName:
-			return http.StatusNotFound
-		case store.ErrorNoSuchServiceInstance:
-			return http.StatusGone
-		case store.ErrorNamespaceQuotaExceeded:
-			return http.StatusForbidden
-		case store.ErrorInternalServerError:
-			return http.StatusInternalServerError
-		case store.ErrorNoInstanceServiceName:
-			return http.StatusBadRequest
-		case store.ErrorInstanceServiceNameTooLong:
-			return http.StatusBadRequest
-		case store.ErrorInstanceEndpointValueTooLong:
-			return http.StatusBadRequest
-		case store.ErrorInstanceStatusLengthTooLong:
-			return http.StatusBadRequest
-		case store.ErrorInstanceMetaDataTooLong:
-			return http.StatusBadRequest
-		default:
-			return http.StatusInternalServerError
-		}
-	}
-	return http.StatusInternalServerError
-}
-
-// Extract and validate filtering fields request. Note that an empty-string request is perfectly valid
-func extractFields(r *rest.Request) ([]string, error) {
-	if _, filteringRequested := r.URL.Query()["fields"]; !filteringRequested {
-		return nil, nil
-	}
-
-	fieldsValue := r.URL.Query().Get("fields")
-	if fieldsValue == "" {
-		return []string{}, nil
-	}
-
-	fieldsSplit := strings.Split(fieldsValue, ",")
-	fields := make([]string, len(fieldsSplit))
-	for i, fld := range fieldsSplit {
-		fldName, ok := instanceQueryValuesToFieldNames[fld]
-		if !ok {
-			return nil, fmt.Errorf("Field %s is not a valid field", fld)
-		}
-
-		fields[i] = fldName
-	}
-
-	return fields, nil
-}
-
-func copyInstanceWithFilter(sname string, si *store.ServiceInstance, fields []string) (*ServiceInstance, error) {
-	inst := &ServiceInstance{
-		ID:          si.ID,
-		ServiceName: sname,
-		Endpoint: &InstanceAddress{
-			Type:  si.Endpoint.Type,
-			Value: si.Endpoint.Value,
-		},
-		Status:        si.Status,
-		Tags:          si.Tags,
-		TTL:           uint32(si.TTL / time.Second),
-		Metadata:      si.Metadata,
-		LastHeartbeat: &si.LastRenewal,
-	}
-
-	if fields != nil {
-		filteredInstance := &ServiceInstance{}
-		err := reflection.FilterStructByFields(inst, filteredInstance, fields)
-		if err != nil {
-			return nil, err
-		}
-		// Add Endpoint because it should always be returned to the user
-		filteredInstance.Endpoint = &InstanceAddress{Type: inst.Endpoint.Type, Value: inst.Endpoint.Value}
-		filteredInstance.ID = inst.ID
-		return filteredInstance, nil
-	}
-
-	return inst, nil
-}

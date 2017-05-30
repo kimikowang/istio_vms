@@ -22,9 +22,25 @@ import (
 	"github.com/amalgam8/amalgam8/registry/utils/reflection"
 )
 
+type Port struct {
+        Name string `json:"name,omitempty"`
+        Port int `json:"port"`
+        Protocol string `json:"protocol,omitempty"`
+}
+
+type PortList []*Port
+
+type Service struct {
+        ServiceName string `json:"service_name"`
+        Address string `json:"address,omitempty"`
+        Ports PortList `json:"ports,omitempty"`
+        ExternalName string `json:"external,omitempty"` 
+}
+
 // InstanceRegistration encapsulates information needed for a service instance registration request
 type InstanceRegistration struct {
 	ServiceName string           `json:"service_name,omitempty"`
+	Service *Service `json:"service",omitempty`
 	Endpoint    *InstanceAddress `json:"endpoint,omitempty"`
 	TTL         uint32           `json:"ttl,omitempty"`
 	Status      string           `json:"status,omitempty"`
@@ -46,6 +62,7 @@ func (ir *InstanceRegistration) String() string {
 type ServiceInstance struct {
 	ID            string           `json:"id,omitempty"`
 	ServiceName   string           `json:"service_name,omitempty"`
+	Service *Service `json:"service,omitemtpy"`
 	Endpoint      *InstanceAddress `json:"endpoint,omitempty"`
 	TTL           uint32           `json:"ttl,omitempty"`
 	Status        string           `json:"status,omitempty"`
