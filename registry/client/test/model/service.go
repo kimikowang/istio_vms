@@ -50,6 +50,9 @@ type Service struct {
 	// connections
 	Ports PortList `json:"ports,omitempty"`
 
+	// ExternalName is only set for external services and holds the external
+	// service DNS name.  External services are name-based solution to represent
+	// external service instances as a service inside the cluster.
 	ExternalName string `json:"external"`
 }
 
@@ -76,14 +79,22 @@ type PortList []*Port
 // Protocol defines network protocols for ports
 type Protocol string
 
-// Protocols used by the services
 const (
-	ProtocolGRPC  Protocol = "GRPC"
+	// ProtocolGRPC declares that the port carries gRPC traffic
+	ProtocolGRPC Protocol = "GRPC"
+	// ProtocolHTTPS declares that the port carries HTTPS traffic
 	ProtocolHTTPS Protocol = "HTTPS"
+	// ProtocolHTTP2 declares that the port carries HTTP/2 traffic
 	ProtocolHTTP2 Protocol = "HTTP2"
-	ProtocolHTTP  Protocol = "HTTP"
-	ProtocolTCP   Protocol = "TCP"
-	ProtocolUDP   Protocol = "UDP"
+	// ProtocolHTTP declares that the port carries HTTP/1.1 traffic.
+	// Note that HTTP/1.0 or earlier may not be supported by the proxy.
+	ProtocolHTTP Protocol = "HTTP"
+	// ProtocolTCP declares the the port uses TCP.
+	// This is the default protocol for a service port.
+	ProtocolTCP Protocol = "TCP"
+	// ProtocolUDP declares that the port uses UDP.
+	// Note that UDP protocol is not currently supported by the proxy.
+	ProtocolUDP Protocol = "UDP"
 )
 
 // NetworkEndpoint defines a network address (IP:port) associated with an instance of the
@@ -179,13 +190,13 @@ type ServiceDiscovery interface {
 
 	// HostInstances lists service instances for a given set of IPv4 addresses.
 	HostInstances(addrs map[string]bool) []*ServiceInstance
+}
 
-	// Gets all the Istio service accounts mapped from service hostname, in istio identity format.
-	// For example,
-	// GetIstioServiceAccounts(catalog.myservice.com) -->
-	//      --> [istio:serviceaccount1, istio:serviceaccount2]
-	// GetIstioServiceAccounts(backend.myservice.com) --> [istio:serviceaccount3]
-	GetIstioServiceAccounts(hostname string) ([]string, error)
+// ServiceAccounts exposes Istio service accounts
+type ServiceAccounts interface {
+	// GetIstioServiceAccounts returns a list of service accounts looked up from
+	// the specified service hostname and ports.
+	GetIstioServiceAccounts(hostname string, ports []string) []string
 }
 
 // SubsetOf is true if the tag has identical values for the keys
@@ -225,7 +236,7 @@ func (tags TagsList) HasSubsetOf(that Tags) bool {
 
 // GetNames returns port names
 func (ports PortList) GetNames() []string {
-	names := make([]string, 0)
+	names := make([]string, 0, len(ports))
 	for _, port := range ports {
 		names = append(names, port.Name)
 	}
@@ -240,6 +251,21 @@ func (ports PortList) Get(name string) (*Port, bool) {
 		}
 	}
 	return nil, false
+}
+
+// GetByPort retrieves a port declaration by port value
+func (ports PortList) GetByPort(num int) (*Port, bool) {
+	for _, port := range ports {
+		if port.Port == num {
+			return port, true
+		}
+	}
+	return nil, false
+}
+
+// External predicate checks whether the service is external
+func (s *Service) External() bool {
+	return s.ExternalName != ""
 }
 
 // Key generates a unique string referencing service instances for a given port and tags.
@@ -326,7 +352,7 @@ func ParseServiceKey(s string) (hostname string, ports PortList, tags TagsList) 
 }
 
 func (t Tags) String() string {
-	labels := make([]string, 0)
+	labels := make([]string, 0, len(t))
 	for k, v := range t {
 		if len(v) > 0 {
 			labels = append(labels, fmt.Sprintf("%s=%s", k, v))
@@ -351,8 +377,10 @@ func (t Tags) String() string {
 
 // ParseTagString extracts tags from a string
 func ParseTagString(s string) Tags {
-	tag := make(map[string]string)
-	for _, pair := range strings.Split(s, ",") {
+	pairs := strings.Split(s, ",")
+	tag := make(map[string]string, len(pairs))
+
+	for _, pair := range pairs {
 		kv := strings.Split(pair, "=")
 		if len(kv) > 1 {
 			tag[kv[0]] = kv[1]
