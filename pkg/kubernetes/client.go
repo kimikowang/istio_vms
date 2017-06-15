@@ -19,12 +19,13 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
-	k8serrors "k8s.io/client-go/pkg/api/errors"
-	"k8s.io/client-go/pkg/api/unversioned"
-	"k8s.io/client-go/pkg/api/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+//	"k8s.io/client-go/pkg/api/unversioned"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/pkg/runtime"
-	"k8s.io/client-go/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
 
 	"github.com/amalgam8/amalgam8/pkg/errors"
@@ -72,7 +73,7 @@ func NewTPRClient(config Config, tprConfig *TPRConfig) (*rest.RESTClient, error)
 		return nil, err
 	}
 
-	groupversion := unversioned.GroupVersion{
+	groupversion := schema.GroupVersion{
 		Group:   tprConfig.GroupName,
 		Version: tprConfig.Version,
 	}
@@ -111,7 +112,7 @@ func InitThirdPartyResource(tprConfig *TPRConfig) error {
 	}
 
 	resName := fmt.Sprintf("%s.%s", tprConfig.Name, tprConfig.GroupName)
-	_, err = client.Extensions().ThirdPartyResources().Get(resName)
+	_, err = client.Extensions().ThirdPartyResources().Get(resName, v1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			tpr := &v1beta1.ThirdPartyResource{

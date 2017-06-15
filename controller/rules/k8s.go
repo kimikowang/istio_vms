@@ -7,8 +7,8 @@ import (
 	"github.com/amalgam8/amalgam8/pkg/api"
 	kubepkg "github.com/amalgam8/amalgam8/pkg/kubernetes"
 	"github.com/pborman/uuid"
-	kubeapi "k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/unversioned"
+	kubeapi "k8s.io/apimachinery/pkg/apis/meta/v1"
+//	"k8s.io/client-go/pkg/api/unversioned"
 	"k8s.io/client-go/rest"
 )
 
@@ -160,7 +160,7 @@ func (k8s *K8S) addRule(rule api.Rule) (out NewRules, err error) {
 func (k8s *K8S) buildRoutingRule(rule api.Rule) kuberules.RoutingRule {
 	return kuberules.RoutingRule{
 		Spec: rule,
-		TypeMeta: unversioned.TypeMeta{
+		TypeMeta: kubeapi.TypeMeta{
 			APIVersion: kuberules.ResourceName + "/" + kuberules.ResourceVersion,
 			Kind:       kuberules.ResourceKind,
 		},

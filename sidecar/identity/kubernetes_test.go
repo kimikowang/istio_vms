@@ -26,8 +26,8 @@ import (
 	fakekubernetes "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/kubernetes/typed/core/v1"
 	fakecore "k8s.io/client-go/kubernetes/typed/core/v1/fake"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (

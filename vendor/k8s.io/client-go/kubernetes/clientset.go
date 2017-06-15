@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,146 +17,357 @@ limitations under the License.
 package kubernetes
 
 import (
-	"github.com/golang/glog"
+	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
-	v1alpha1apps "k8s.io/client-go/kubernetes/typed/apps/v1alpha1"
-	v1beta1authentication "k8s.io/client-go/kubernetes/typed/authentication/v1beta1"
-	v1beta1authorization "k8s.io/client-go/kubernetes/typed/authorization/v1beta1"
-	v1autoscaling "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
-	v1batch "k8s.io/client-go/kubernetes/typed/batch/v1"
-	v1alpha1certificates "k8s.io/client-go/kubernetes/typed/certificates/v1alpha1"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
-	v1alpha1policy "k8s.io/client-go/kubernetes/typed/policy/v1alpha1"
-	v1alpha1rbac "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1"
-	v1beta1storage "k8s.io/client-go/kubernetes/typed/storage/v1beta1"
-	"k8s.io/client-go/pkg/util/flowcontrol"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	appsv1beta1 "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
+	authenticationv1 "k8s.io/client-go/kubernetes/typed/authentication/v1"
+	authenticationv1beta1 "k8s.io/client-go/kubernetes/typed/authentication/v1beta1"
+	authorizationv1 "k8s.io/client-go/kubernetes/typed/authorization/v1"
+	authorizationv1beta1 "k8s.io/client-go/kubernetes/typed/authorization/v1beta1"
+	autoscalingv1 "k8s.io/client-go/kubernetes/typed/autoscaling/v1"
+	autoscalingv2alpha1 "k8s.io/client-go/kubernetes/typed/autoscaling/v2alpha1"
+	batchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
+	batchv2alpha1 "k8s.io/client-go/kubernetes/typed/batch/v2alpha1"
+	certificatesv1beta1 "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	extensionsv1beta1 "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
+	policyv1beta1 "k8s.io/client-go/kubernetes/typed/policy/v1beta1"
+	rbacv1alpha1 "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1"
+	rbacv1beta1 "k8s.io/client-go/kubernetes/typed/rbac/v1beta1"
+	settingsv1alpha1 "k8s.io/client-go/kubernetes/typed/settings/v1alpha1"
+	storagev1 "k8s.io/client-go/kubernetes/typed/storage/v1"
+	storagev1beta1 "k8s.io/client-go/kubernetes/typed/storage/v1beta1"
 	rest "k8s.io/client-go/rest"
+	flowcontrol "k8s.io/client-go/util/flowcontrol"
 )
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	Core() v1core.CoreInterface
-	Apps() v1alpha1apps.AppsInterface
-	Authentication() v1beta1authentication.AuthenticationInterface
-	Authorization() v1beta1authorization.AuthorizationInterface
-	Autoscaling() v1autoscaling.AutoscalingInterface
-	Batch() v1batch.BatchInterface
-	Certificates() v1alpha1certificates.CertificatesInterface
-	Extensions() v1beta1extensions.ExtensionsInterface
-	Policy() v1alpha1policy.PolicyInterface
-	Rbac() v1alpha1rbac.RbacInterface
-	Storage() v1beta1storage.StorageInterface
+	CoreV1() corev1.CoreV1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Core() corev1.CoreV1Interface
+	AppsV1beta1() appsv1beta1.AppsV1beta1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Apps() appsv1beta1.AppsV1beta1Interface
+	AuthenticationV1() authenticationv1.AuthenticationV1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Authentication() authenticationv1.AuthenticationV1Interface
+	AuthenticationV1beta1() authenticationv1beta1.AuthenticationV1beta1Interface
+	AuthorizationV1() authorizationv1.AuthorizationV1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Authorization() authorizationv1.AuthorizationV1Interface
+	AuthorizationV1beta1() authorizationv1beta1.AuthorizationV1beta1Interface
+	AutoscalingV1() autoscalingv1.AutoscalingV1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Autoscaling() autoscalingv1.AutoscalingV1Interface
+	AutoscalingV2alpha1() autoscalingv2alpha1.AutoscalingV2alpha1Interface
+	BatchV1() batchv1.BatchV1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Batch() batchv1.BatchV1Interface
+	BatchV2alpha1() batchv2alpha1.BatchV2alpha1Interface
+	CertificatesV1beta1() certificatesv1beta1.CertificatesV1beta1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Certificates() certificatesv1beta1.CertificatesV1beta1Interface
+	ExtensionsV1beta1() extensionsv1beta1.ExtensionsV1beta1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Extensions() extensionsv1beta1.ExtensionsV1beta1Interface
+	PolicyV1beta1() policyv1beta1.PolicyV1beta1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Policy() policyv1beta1.PolicyV1beta1Interface
+	RbacV1beta1() rbacv1beta1.RbacV1beta1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Rbac() rbacv1beta1.RbacV1beta1Interface
+	RbacV1alpha1() rbacv1alpha1.RbacV1alpha1Interface
+	SettingsV1alpha1() settingsv1alpha1.SettingsV1alpha1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Settings() settingsv1alpha1.SettingsV1alpha1Interface
+	StorageV1beta1() storagev1beta1.StorageV1beta1Interface
+	StorageV1() storagev1.StorageV1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Storage() storagev1.StorageV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	*v1core.CoreClient
-	*v1alpha1apps.AppsClient
-	*v1beta1authentication.AuthenticationClient
-	*v1beta1authorization.AuthorizationClient
-	*v1autoscaling.AutoscalingClient
-	*v1batch.BatchClient
-	*v1alpha1certificates.CertificatesClient
-	*v1beta1extensions.ExtensionsClient
-	*v1alpha1policy.PolicyClient
-	*v1alpha1rbac.RbacClient
-	*v1beta1storage.StorageClient
+	*corev1.CoreV1Client
+	*appsv1beta1.AppsV1beta1Client
+	*authenticationv1.AuthenticationV1Client
+	*authenticationv1beta1.AuthenticationV1beta1Client
+	*authorizationv1.AuthorizationV1Client
+	*authorizationv1beta1.AuthorizationV1beta1Client
+	*autoscalingv1.AutoscalingV1Client
+	*autoscalingv2alpha1.AutoscalingV2alpha1Client
+	*batchv1.BatchV1Client
+	*batchv2alpha1.BatchV2alpha1Client
+	*certificatesv1beta1.CertificatesV1beta1Client
+	*extensionsv1beta1.ExtensionsV1beta1Client
+	*policyv1beta1.PolicyV1beta1Client
+	*rbacv1beta1.RbacV1beta1Client
+	*rbacv1alpha1.RbacV1alpha1Client
+	*settingsv1alpha1.SettingsV1alpha1Client
+	*storagev1beta1.StorageV1beta1Client
+	*storagev1.StorageV1Client
 }
 
-// Core retrieves the CoreClient
-func (c *Clientset) Core() v1core.CoreInterface {
+// CoreV1 retrieves the CoreV1Client
+func (c *Clientset) CoreV1() corev1.CoreV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.CoreClient
+	return c.CoreV1Client
 }
 
-// Apps retrieves the AppsClient
-func (c *Clientset) Apps() v1alpha1apps.AppsInterface {
+// Deprecated: Core retrieves the default version of CoreClient.
+// Please explicitly pick a version.
+func (c *Clientset) Core() corev1.CoreV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.AppsClient
+	return c.CoreV1Client
 }
 
-// Authentication retrieves the AuthenticationClient
-func (c *Clientset) Authentication() v1beta1authentication.AuthenticationInterface {
+// AppsV1beta1 retrieves the AppsV1beta1Client
+func (c *Clientset) AppsV1beta1() appsv1beta1.AppsV1beta1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.AuthenticationClient
+	return c.AppsV1beta1Client
 }
 
-// Authorization retrieves the AuthorizationClient
-func (c *Clientset) Authorization() v1beta1authorization.AuthorizationInterface {
+// Deprecated: Apps retrieves the default version of AppsClient.
+// Please explicitly pick a version.
+func (c *Clientset) Apps() appsv1beta1.AppsV1beta1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.AuthorizationClient
+	return c.AppsV1beta1Client
 }
 
-// Autoscaling retrieves the AutoscalingClient
-func (c *Clientset) Autoscaling() v1autoscaling.AutoscalingInterface {
+// AuthenticationV1 retrieves the AuthenticationV1Client
+func (c *Clientset) AuthenticationV1() authenticationv1.AuthenticationV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.AutoscalingClient
+	return c.AuthenticationV1Client
 }
 
-// Batch retrieves the BatchClient
-func (c *Clientset) Batch() v1batch.BatchInterface {
+// Deprecated: Authentication retrieves the default version of AuthenticationClient.
+// Please explicitly pick a version.
+func (c *Clientset) Authentication() authenticationv1.AuthenticationV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.BatchClient
+	return c.AuthenticationV1Client
 }
 
-// Certificates retrieves the CertificatesClient
-func (c *Clientset) Certificates() v1alpha1certificates.CertificatesInterface {
+// AuthenticationV1beta1 retrieves the AuthenticationV1beta1Client
+func (c *Clientset) AuthenticationV1beta1() authenticationv1beta1.AuthenticationV1beta1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.CertificatesClient
+	return c.AuthenticationV1beta1Client
 }
 
-// Extensions retrieves the ExtensionsClient
-func (c *Clientset) Extensions() v1beta1extensions.ExtensionsInterface {
+// AuthorizationV1 retrieves the AuthorizationV1Client
+func (c *Clientset) AuthorizationV1() authorizationv1.AuthorizationV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.ExtensionsClient
+	return c.AuthorizationV1Client
 }
 
-// Policy retrieves the PolicyClient
-func (c *Clientset) Policy() v1alpha1policy.PolicyInterface {
+// Deprecated: Authorization retrieves the default version of AuthorizationClient.
+// Please explicitly pick a version.
+func (c *Clientset) Authorization() authorizationv1.AuthorizationV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.PolicyClient
+	return c.AuthorizationV1Client
 }
 
-// Rbac retrieves the RbacClient
-func (c *Clientset) Rbac() v1alpha1rbac.RbacInterface {
+// AuthorizationV1beta1 retrieves the AuthorizationV1beta1Client
+func (c *Clientset) AuthorizationV1beta1() authorizationv1beta1.AuthorizationV1beta1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.RbacClient
+	return c.AuthorizationV1beta1Client
 }
 
-// Storage retrieves the StorageClient
-func (c *Clientset) Storage() v1beta1storage.StorageInterface {
+// AutoscalingV1 retrieves the AutoscalingV1Client
+func (c *Clientset) AutoscalingV1() autoscalingv1.AutoscalingV1Interface {
 	if c == nil {
 		return nil
 	}
-	return c.StorageClient
+	return c.AutoscalingV1Client
+}
+
+// Deprecated: Autoscaling retrieves the default version of AutoscalingClient.
+// Please explicitly pick a version.
+func (c *Clientset) Autoscaling() autoscalingv1.AutoscalingV1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.AutoscalingV1Client
+}
+
+// AutoscalingV2alpha1 retrieves the AutoscalingV2alpha1Client
+func (c *Clientset) AutoscalingV2alpha1() autoscalingv2alpha1.AutoscalingV2alpha1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.AutoscalingV2alpha1Client
+}
+
+// BatchV1 retrieves the BatchV1Client
+func (c *Clientset) BatchV1() batchv1.BatchV1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.BatchV1Client
+}
+
+// Deprecated: Batch retrieves the default version of BatchClient.
+// Please explicitly pick a version.
+func (c *Clientset) Batch() batchv1.BatchV1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.BatchV1Client
+}
+
+// BatchV2alpha1 retrieves the BatchV2alpha1Client
+func (c *Clientset) BatchV2alpha1() batchv2alpha1.BatchV2alpha1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.BatchV2alpha1Client
+}
+
+// CertificatesV1beta1 retrieves the CertificatesV1beta1Client
+func (c *Clientset) CertificatesV1beta1() certificatesv1beta1.CertificatesV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.CertificatesV1beta1Client
+}
+
+// Deprecated: Certificates retrieves the default version of CertificatesClient.
+// Please explicitly pick a version.
+func (c *Clientset) Certificates() certificatesv1beta1.CertificatesV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.CertificatesV1beta1Client
+}
+
+// ExtensionsV1beta1 retrieves the ExtensionsV1beta1Client
+func (c *Clientset) ExtensionsV1beta1() extensionsv1beta1.ExtensionsV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.ExtensionsV1beta1Client
+}
+
+// Deprecated: Extensions retrieves the default version of ExtensionsClient.
+// Please explicitly pick a version.
+func (c *Clientset) Extensions() extensionsv1beta1.ExtensionsV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.ExtensionsV1beta1Client
+}
+
+// PolicyV1beta1 retrieves the PolicyV1beta1Client
+func (c *Clientset) PolicyV1beta1() policyv1beta1.PolicyV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.PolicyV1beta1Client
+}
+
+// Deprecated: Policy retrieves the default version of PolicyClient.
+// Please explicitly pick a version.
+func (c *Clientset) Policy() policyv1beta1.PolicyV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.PolicyV1beta1Client
+}
+
+// RbacV1beta1 retrieves the RbacV1beta1Client
+func (c *Clientset) RbacV1beta1() rbacv1beta1.RbacV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.RbacV1beta1Client
+}
+
+// Deprecated: Rbac retrieves the default version of RbacClient.
+// Please explicitly pick a version.
+func (c *Clientset) Rbac() rbacv1beta1.RbacV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.RbacV1beta1Client
+}
+
+// RbacV1alpha1 retrieves the RbacV1alpha1Client
+func (c *Clientset) RbacV1alpha1() rbacv1alpha1.RbacV1alpha1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.RbacV1alpha1Client
+}
+
+// SettingsV1alpha1 retrieves the SettingsV1alpha1Client
+func (c *Clientset) SettingsV1alpha1() settingsv1alpha1.SettingsV1alpha1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.SettingsV1alpha1Client
+}
+
+// Deprecated: Settings retrieves the default version of SettingsClient.
+// Please explicitly pick a version.
+func (c *Clientset) Settings() settingsv1alpha1.SettingsV1alpha1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.SettingsV1alpha1Client
+}
+
+// StorageV1beta1 retrieves the StorageV1beta1Client
+func (c *Clientset) StorageV1beta1() storagev1beta1.StorageV1beta1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.StorageV1beta1Client
+}
+
+// StorageV1 retrieves the StorageV1Client
+func (c *Clientset) StorageV1() storagev1.StorageV1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.StorageV1Client
+}
+
+// Deprecated: Storage retrieves the default version of StorageClient.
+// Please explicitly pick a version.
+func (c *Clientset) Storage() storagev1.StorageV1Interface {
+	if c == nil {
+		return nil
+	}
+	return c.StorageV1Client
 }
 
 // Discovery retrieves the DiscoveryClient
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
+	if c == nil {
+		return nil
+	}
 	return c.DiscoveryClient
 }
 
@@ -166,96 +377,138 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
-	var clientset Clientset
+	var cs Clientset
 	var err error
-	clientset.CoreClient, err = v1core.NewForConfig(&configShallowCopy)
+	cs.CoreV1Client, err = corev1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.AppsClient, err = v1alpha1apps.NewForConfig(&configShallowCopy)
+	cs.AppsV1beta1Client, err = appsv1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.AuthenticationClient, err = v1beta1authentication.NewForConfig(&configShallowCopy)
+	cs.AuthenticationV1Client, err = authenticationv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.AuthorizationClient, err = v1beta1authorization.NewForConfig(&configShallowCopy)
+	cs.AuthenticationV1beta1Client, err = authenticationv1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.AutoscalingClient, err = v1autoscaling.NewForConfig(&configShallowCopy)
+	cs.AuthorizationV1Client, err = authorizationv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.BatchClient, err = v1batch.NewForConfig(&configShallowCopy)
+	cs.AuthorizationV1beta1Client, err = authorizationv1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.CertificatesClient, err = v1alpha1certificates.NewForConfig(&configShallowCopy)
+	cs.AutoscalingV1Client, err = autoscalingv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.ExtensionsClient, err = v1beta1extensions.NewForConfig(&configShallowCopy)
+	cs.AutoscalingV2alpha1Client, err = autoscalingv2alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.PolicyClient, err = v1alpha1policy.NewForConfig(&configShallowCopy)
+	cs.BatchV1Client, err = batchv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.RbacClient, err = v1alpha1rbac.NewForConfig(&configShallowCopy)
+	cs.BatchV2alpha1Client, err = batchv2alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	clientset.StorageClient, err = v1beta1storage.NewForConfig(&configShallowCopy)
+	cs.CertificatesV1beta1Client, err = certificatesv1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.ExtensionsV1beta1Client, err = extensionsv1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.PolicyV1beta1Client, err = policyv1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.RbacV1beta1Client, err = rbacv1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.RbacV1alpha1Client, err = rbacv1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.SettingsV1alpha1Client, err = settingsv1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.StorageV1beta1Client, err = storagev1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.StorageV1Client, err = storagev1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
 
-	clientset.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
+	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
 		glog.Errorf("failed to create the DiscoveryClient: %v", err)
 		return nil, err
 	}
-	return &clientset, nil
+	return &cs, nil
 }
 
 // NewForConfigOrDie creates a new Clientset for the given config and
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
-	var clientset Clientset
-	clientset.CoreClient = v1core.NewForConfigOrDie(c)
-	clientset.AppsClient = v1alpha1apps.NewForConfigOrDie(c)
-	clientset.AuthenticationClient = v1beta1authentication.NewForConfigOrDie(c)
-	clientset.AuthorizationClient = v1beta1authorization.NewForConfigOrDie(c)
-	clientset.AutoscalingClient = v1autoscaling.NewForConfigOrDie(c)
-	clientset.BatchClient = v1batch.NewForConfigOrDie(c)
-	clientset.CertificatesClient = v1alpha1certificates.NewForConfigOrDie(c)
-	clientset.ExtensionsClient = v1beta1extensions.NewForConfigOrDie(c)
-	clientset.PolicyClient = v1alpha1policy.NewForConfigOrDie(c)
-	clientset.RbacClient = v1alpha1rbac.NewForConfigOrDie(c)
-	clientset.StorageClient = v1beta1storage.NewForConfigOrDie(c)
+	var cs Clientset
+	cs.CoreV1Client = corev1.NewForConfigOrDie(c)
+	cs.AppsV1beta1Client = appsv1beta1.NewForConfigOrDie(c)
+	cs.AuthenticationV1Client = authenticationv1.NewForConfigOrDie(c)
+	cs.AuthenticationV1beta1Client = authenticationv1beta1.NewForConfigOrDie(c)
+	cs.AuthorizationV1Client = authorizationv1.NewForConfigOrDie(c)
+	cs.AuthorizationV1beta1Client = authorizationv1beta1.NewForConfigOrDie(c)
+	cs.AutoscalingV1Client = autoscalingv1.NewForConfigOrDie(c)
+	cs.AutoscalingV2alpha1Client = autoscalingv2alpha1.NewForConfigOrDie(c)
+	cs.BatchV1Client = batchv1.NewForConfigOrDie(c)
+	cs.BatchV2alpha1Client = batchv2alpha1.NewForConfigOrDie(c)
+	cs.CertificatesV1beta1Client = certificatesv1beta1.NewForConfigOrDie(c)
+	cs.ExtensionsV1beta1Client = extensionsv1beta1.NewForConfigOrDie(c)
+	cs.PolicyV1beta1Client = policyv1beta1.NewForConfigOrDie(c)
+	cs.RbacV1beta1Client = rbacv1beta1.NewForConfigOrDie(c)
+	cs.RbacV1alpha1Client = rbacv1alpha1.NewForConfigOrDie(c)
+	cs.SettingsV1alpha1Client = settingsv1alpha1.NewForConfigOrDie(c)
+	cs.StorageV1beta1Client = storagev1beta1.NewForConfigOrDie(c)
+	cs.StorageV1Client = storagev1.NewForConfigOrDie(c)
 
-	clientset.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
-	return &clientset
+	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
+	return &cs
 }
 
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
-	var clientset Clientset
-	clientset.CoreClient = v1core.New(c)
-	clientset.AppsClient = v1alpha1apps.New(c)
-	clientset.AuthenticationClient = v1beta1authentication.New(c)
-	clientset.AuthorizationClient = v1beta1authorization.New(c)
-	clientset.AutoscalingClient = v1autoscaling.New(c)
-	clientset.BatchClient = v1batch.New(c)
-	clientset.CertificatesClient = v1alpha1certificates.New(c)
-	clientset.ExtensionsClient = v1beta1extensions.New(c)
-	clientset.PolicyClient = v1alpha1policy.New(c)
-	clientset.RbacClient = v1alpha1rbac.New(c)
-	clientset.StorageClient = v1beta1storage.New(c)
+	var cs Clientset
+	cs.CoreV1Client = corev1.New(c)
+	cs.AppsV1beta1Client = appsv1beta1.New(c)
+	cs.AuthenticationV1Client = authenticationv1.New(c)
+	cs.AuthenticationV1beta1Client = authenticationv1beta1.New(c)
+	cs.AuthorizationV1Client = authorizationv1.New(c)
+	cs.AuthorizationV1beta1Client = authorizationv1beta1.New(c)
+	cs.AutoscalingV1Client = autoscalingv1.New(c)
+	cs.AutoscalingV2alpha1Client = autoscalingv2alpha1.New(c)
+	cs.BatchV1Client = batchv1.New(c)
+	cs.BatchV2alpha1Client = batchv2alpha1.New(c)
+	cs.CertificatesV1beta1Client = certificatesv1beta1.New(c)
+	cs.ExtensionsV1beta1Client = extensionsv1beta1.New(c)
+	cs.PolicyV1beta1Client = policyv1beta1.New(c)
+	cs.RbacV1beta1Client = rbacv1beta1.New(c)
+	cs.RbacV1alpha1Client = rbacv1alpha1.New(c)
+	cs.SettingsV1alpha1Client = settingsv1alpha1.New(c)
+	cs.StorageV1beta1Client = storagev1beta1.New(c)
+	cs.StorageV1Client = storagev1.New(c)
 
-	clientset.DiscoveryClient = discovery.NewDiscoveryClient(c)
-	return &clientset
+	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
+	return &cs
 }

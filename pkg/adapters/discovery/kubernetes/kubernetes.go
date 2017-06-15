@@ -28,6 +28,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -64,11 +65,11 @@ type Config struct {
 type Adapter struct {
 	// endpointsCache caches service endpoints resources from Kubernetes API
 	endpointsCache      cache.Store
-	endpointsController cache.ControllerInterface
+	endpointsController cache.Controller
 
 	// podCache caches pod resources from Kubernetes API
 	podCache      cache.Store
-	podController cache.ControllerInterface
+	podController cache.Controller
 
 	// workqueue is used to queue and process events send from the cache controllers
 	workqueue *kubepkg.Workqueue
@@ -413,7 +414,7 @@ func (a *Adapter) createServiceInstance(serviceName string, address *v1.Endpoint
 // getCachedServiceEndpoints returns the cached endpoints resource for the given service, or nil if doesn't exist.
 func (a *Adapter) getCachedServiceEndpoints(serviceName string) *v1.Endpoints {
 	key, err := cache.MetaNamespaceKeyFunc(&v1.Endpoints{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: a.namespace,
 			Name:      serviceName,
 		},
@@ -435,7 +436,7 @@ func (a *Adapter) getCachedServiceEndpoints(serviceName string) *v1.Endpoints {
 // getCachedPod returns the cached pod resource for the given pod name, or nil if doesn't exist.
 func (a *Adapter) getCachedPod(podName string) *v1.Pod {
 	key, err := cache.MetaNamespaceKeyFunc(&v1.Pod{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: a.namespace,
 			Name:      podName,
 		},

@@ -22,8 +22,9 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/labels"
-	"k8s.io/client-go/pkg/util/intstr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -50,12 +51,12 @@ func newKubernetesProvider(podName string, namespace string, client kubernetes.I
 }
 
 func (kb *kubernetesProvider) GetIdentity() (*api.ServiceInstance, error) {
-	pod, err := kb.client.Core().Pods(kb.namespace).Get(kb.podName)
+	pod, err := kb.client.Core().Pods(kb.namespace).Get(kb.podName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	services, err := kb.client.Core().Services(kb.namespace).List(v1.ListOptions{})
+	services, err := kb.client.Core().Services(kb.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

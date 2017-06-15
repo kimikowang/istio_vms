@@ -59,7 +59,8 @@ import:
   version: 2.1.0
 
 - package: k8s.io/client-go
-  version: 2.0.0-alpha.0
+#  version: 2.0.0-alpha.0
+  version: 4e221f82e2ad6e61bd6190602de9c3400d79f1aa  
   repo:    git@github.com:kubernetes/client-go
 
 # Workaround to resolve dependency version conflicts between k8s.io/client-go

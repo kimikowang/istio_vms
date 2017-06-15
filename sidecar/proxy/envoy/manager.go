@@ -51,7 +51,7 @@ const (
 	DefaultAdminPort        = 8001
 	DefaultHTTPListenerPort = 6379
 	DefaultWorkingDir       = "/etc/envoy/"
-	DefaultLoggingDir       = "/var/log/"
+	DefaultLoggingDir       = "/dev/stdout"
 	DefaultEnvoyBinary      = "envoy"
 )
 

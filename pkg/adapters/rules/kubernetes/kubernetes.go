@@ -57,7 +57,7 @@ type Adapter struct {
 
 	// rulesCache caches rules from Kubernetes API
 	rulesCache      cache.Store
-	rulesController cache.ControllerInterface
+	rulesController cache.Controller
 
 	// rules maps a rule unique name to a api rule object.
 	rules map[string]*a8api.Rule

@@ -17,9 +17,10 @@ package kubernetes
 import (
 	"encoding/json"
 
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/meta"
-	"k8s.io/client-go/pkg/api/unversioned"
+//	"k8s.io/client-go/pkg/api"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+//	"k8s.io/client-go/pkg/api/unversioned"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	a8api "github.com/amalgam8/amalgam8/pkg/api"
 )
@@ -49,8 +50,8 @@ type StatusSpec struct {
 
 // RoutingRule defines the third party resource spec
 type RoutingRule struct {
-	unversioned.TypeMeta `json:",inline"`
-	Metadata             api.ObjectMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	Metadata             metav1.ObjectMeta `json:"metadata"`
 
 	Spec   a8api.Rule `json:"spec,omitempty"`
 	Status StatusSpec `json:"status,omitempty"`
@@ -58,29 +59,29 @@ type RoutingRule struct {
 
 // RoutingRuleList defines list of rules
 type RoutingRuleList struct {
-	unversioned.TypeMeta `json:",inline"`
-	Metadata             unversioned.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	Metadata             metav1.ListMeta `json:"metadata"`
 
 	Items []RoutingRule `json:"items"`
 }
 
 // GetObjectKind - Required to satisfy Object interface
-func (r *RoutingRule) GetObjectKind() unversioned.ObjectKind {
+func (r *RoutingRule) GetObjectKind() schema.ObjectKind {
 	return &r.TypeMeta
 }
 
 // GetObjectMeta - Required to satisfy ObjectMetaAccessor interface
-func (r *RoutingRule) GetObjectMeta() meta.Object {
+func (r *RoutingRule) GetObjectMeta() metav1.Object {
 	return &r.Metadata
 }
 
 // GetObjectKind - Required to satisfy Object interface
-func (rl *RoutingRuleList) GetObjectKind() unversioned.ObjectKind {
+func (rl *RoutingRuleList) GetObjectKind() schema.ObjectKind {
 	return &rl.TypeMeta
 }
 
 // GetListMeta - Required to satisfy ListMetaAccessor interface
-func (rl *RoutingRuleList) GetListMeta() unversioned.List {
+func (rl *RoutingRuleList) GetListMeta() metav1.List {
 	return &rl.Metadata
 }
 
