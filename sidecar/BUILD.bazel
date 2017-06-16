@@ -1,0 +1,29 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["sidecar.go"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/adapters/discovery/amalgam8:go_default_library",
+        "//pkg/adapters/discovery/eureka:go_default_library",
+        "//pkg/adapters/discovery/kubernetes:go_default_library",
+        "//pkg/adapters/rules/amalgam8:go_default_library",
+        "//pkg/adapters/rules/kubernetes:go_default_library",
+        "//pkg/api:go_default_library",
+        "//pkg/auth:go_default_library",
+        "//pkg/kubernetes:go_default_library",
+        "//pkg/version:go_default_library",
+        "//sidecar/config:go_default_library",
+        "//sidecar/dns:go_default_library",
+        "//sidecar/identity:go_default_library",
+        "//sidecar/proxy:go_default_library",
+        "//sidecar/proxy/monitor:go_default_library",
+        "//sidecar/register:go_default_library",
+        "//sidecar/register/healthcheck:go_default_library",
+        "//sidecar/supervisor:go_default_library",
+        "@com_github_Sirupsen_logrus//:go_default_library",
+        "@com_github_urfave_cli//:go_default_library",
+        "@io_k8s_client_go//kubernetes:go_default_library",
+    ],
+)
