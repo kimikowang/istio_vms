@@ -190,7 +190,7 @@ func New(context *cli.Context) (*Config, error) {
 
 	// Load configuration from file, if specified
 	if context.IsSet(configFlag) {
-		err := config.loadFromFile(context.String(configFlag))
+		err := config.LoadFromFile(context.String(configFlag))
 		if err != nil {
 			return nil, err
 		}
