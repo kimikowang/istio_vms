@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "endpoints.go",
+        "instance.go",
+        "instance_address.go",
+        "instance_handler.go",
+        "instance_links.go",
+        "instances_list.go",
+        "routes.go",
+        "select_criteria.go",
+        "service_handler.go",
+        "service_instance_list.go",
+        "services_list.go",
+        "util.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/auth:go_default_library",
+        "//registry/server/env:go_default_library",
+        "//registry/server/middleware:go_default_library",
+        "//registry/server/protocol:go_default_library",
+        "//registry/store:go_default_library",
+        "//registry/utils/i18n:go_default_library",
+        "//registry/utils/logging:go_default_library",
+        "//registry/utils/reflection:go_default_library",
+        "@com_github_Sirupsen_logrus//:go_default_library",
+        "@com_github_ant0ine_go_json_rest//rest:go_default_library",
+    ],
+)

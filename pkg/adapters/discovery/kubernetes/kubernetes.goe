@@ -1,0 +1,465 @@
+// Copyright 2016 IBM Corporation
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+package kubernetes
+
+import (
+	"fmt"
+	"reflect"
+	"sync"
+	"time"
+
+	"github.com/amalgam8/amalgam8/pkg/api"
+	"github.com/amalgam8/amalgam8/pkg/auth"
+	"github.com/amalgam8/amalgam8/pkg/datastructures"
+	kubepkg "github.com/amalgam8/amalgam8/pkg/kubernetes"
+	"github.com/amalgam8/amalgam8/registry/utils/logging"
+
+	"k8s.io/client-go/kubernetes"
+	k8sapi "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/tools/cache"
+)
+
+const (
+	// EndpointsCacheResyncPeriod is the period in which we do a full resync of the endpoints cache.
+	EndpointsCacheResyncPeriod = time.Duration(60) * time.Second
+
+	// PodCacheResyncPeriod is the period in which we do a full resync of the pod cache.
+	PodCacheResyncPeriod = time.Duration(60) * time.Second
+)
+
+// Make sure we implement the ServiceDiscovery interface
+var _ api.ServiceDiscovery = (*Adapter)(nil)
+
+// Package global logger
+var logger = logging.GetLogger("KUBERNETES")
+
+// Config stores configurable attributes of the Kubernetes adapter.
+type Config struct {
+	kubepkg.Config
+
+	// Namespace to target for Kubernetes API calls.
+	// If left empty, defaults to "default" namespace.
+	Namespace auth.Namespace
+
+	// Client to be used by the Kubernetes adapter.
+	// If no client is provided, then a client is created
+	// according the specified URL/Token/Namespace, if provided,
+	// or from the local service account, if running within a Kubernetes pod.
+	Client kubernetes.Interface
+}
+
+// Adapter for Kubernetes Service Discovery.
+type Adapter struct {
+	// endpointsCache caches service endpoints resources from Kubernetes API
+	endpointsCache      cache.Store
+	endpointsController cache.Controller
+
+	// podCache caches pod resources from Kubernetes API
+	podCache      cache.Store
+	podController cache.Controller
+
+	// workqueue is used to queue and process events send from the cache controllers
+	workqueue *kubepkg.Workqueue
+
+	// services maps a service name to a list of service instances.
+	// This is stored precomputed so we won't have to recompute it
+	// with every ListInstance()/ListServiceInstances() call.
+	services map[string][]*api.ServiceInstance
+
+	// servicePods maps a service name to a set of pod names implementing it.
+	// podServices maps a pod name to a set of service names implemented by it.
+	// These are maintained mainly for supporting dynamic label updates on pods.
+	servicePods map[string]datastructures.StringSet
+	podServices map[string]datastructures.StringSet
+
+	// namespace from which to sync endpoints/pods
+	namespace string
+
+	// stopChan for stop signals
+	stopChan chan struct{}
+
+	// mutex is used to synchronize access to the 'services' map,
+	// which is read by the ListXXX() methods (externally),
+	// and is written by the cache event handlers (internally).
+	// Given that we expect a single reader only, we use a regular sync.Mutex rather than a sync.RWMutex.
+	mutex sync.Mutex
+}
+
+// New creates and starts a new Kubernetes Service Discovery adapter.
+func New(config Config) (*Adapter, error) {
+	var client kubernetes.Interface
+	if config.Client != nil {
+		client = config.Client
+	} else {
+		var err error
+		client, err = kubepkg.NewClient(config.Config)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// If no namespace is specified, fallback to default namespace
+	namespace := config.Namespace.String()
+	if namespace == "" {
+		namespace = "default"
+	}
+
+	workqueue := kubepkg.NewWorkqueue()
+	adapter := &Adapter{
+		workqueue:   workqueue,
+		services:    make(map[string][]*api.ServiceInstance),
+		podServices: make(map[string]datastructures.StringSet),
+		servicePods: make(map[string]datastructures.StringSet),
+		namespace:   namespace,
+	}
+
+	adapter.endpointsCache, adapter.endpointsController = cache.NewInformer(
+		cache.NewListWatchFromClient(client.Core().RESTClient(), "endpoints", namespace, nil),
+		&k8sapi.Endpoints{},
+		EndpointsCacheResyncPeriod,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    workqueue.EnqueueingAddFunc(adapter.addEndpoints),
+			UpdateFunc: workqueue.EnqueueingUpdateFunc(adapter.updateEndpoints),
+			DeleteFunc: workqueue.EnqueueingDeleteFunc(adapter.deleteEndpoints),
+		},
+	)
+
+	adapter.podCache, adapter.podController = cache.NewInformer(
+		cache.NewListWatchFromClient(client.Core().RESTClient(), "pods", namespace, nil),
+		&k8sapi.Pod{},
+		PodCacheResyncPeriod,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    workqueue.EnqueueingAddFunc(adapter.addPod),
+			UpdateFunc: workqueue.EnqueueingUpdateFunc(adapter.updatePod),
+			DeleteFunc: workqueue.EnqueueingDeleteFunc(adapter.deletePod),
+		},
+	)
+
+	return adapter, adapter.Start()
+}
+
+// Start synchronizing the Kubernetes adapter.
+func (a *Adapter) Start() error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	if a.stopChan != nil {
+		err := fmt.Errorf("kubernetes adapter already started")
+		logger.WithError(err).Errorf("Failed starting Kubernetes adapter")
+		return err
+	}
+	a.stopChan = make(chan struct{})
+
+	a.workqueue.Start()
+
+	go a.endpointsController.Run(a.stopChan)
+	go a.podController.Run(a.stopChan)
+
+	return nil
+}
+
+// Stop synchronizing the Kubernetes adapter.
+func (a *Adapter) Stop() error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	if a.stopChan == nil {
+		err := fmt.Errorf("kubernetes adapter not started")
+		logger.WithError(err).Errorf("Failed stopping Kubernetes adapter")
+		return err
+	}
+	close(a.stopChan)
+	a.stopChan = nil
+
+	a.workqueue.Stop()
+
+	return nil
+}
+
+// ListServices queries for the list of services for which instances are currently registered.
+func (a *Adapter) ListServices() ([]string, error) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	services := make([]string, 0, len(a.services))
+	for service := range a.services {
+		services = append(services, service)
+	}
+
+	return services, nil
+}
+
+// ListInstances queries for the list of service instances currently registered.
+func (a *Adapter) ListInstances() ([]*api.ServiceInstance, error) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	instances := make([]*api.ServiceInstance, 0, len(a.services)*3)
+	for _, service := range a.services {
+		instances = append(instances, service...)
+	}
+
+	return instances, nil
+}
+
+// ListServiceInstances queries for the list of service instances currently registered for the given service.
+func (a *Adapter) ListServiceInstances(serviceName string) ([]*api.ServiceInstance, error) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	service := a.services[serviceName]
+	instances := make([]*api.ServiceInstance, 0, len(service))
+	instances = append(instances, service...)
+
+	return instances, nil
+}
+
+// addEndpoints is the callback invoked by the Kubernetes cache when an endpoints API resource is added.
+func (a *Adapter) addEndpoints(obj interface{}) {
+	endpoints, ok := obj.(*k8sapi.Endpoints)
+	if !ok {
+		logger.Warnf("Invalid endpoint added: object is of type %T", obj)
+		return
+	}
+
+	logger.Debugf("Endpoints object added: %s", endpoints.Name)
+	a.reloadServiceFromEndpoints(endpoints)
+}
+
+// updateEndpoints is the callback invoked by the Kubernetes cache when an endpoints API resource is updated.
+func (a *Adapter) updateEndpoints(oldObj, newObj interface{}) {
+	oldEndpoints, ok := oldObj.(*k8sapi.Endpoints)
+	if !ok {
+		logger.Warnf("Invalid endpoint update: old object is of type %T", oldObj)
+		return
+	}
+	newEndpoints, ok := newObj.(*k8sapi.Endpoints)
+	if !ok {
+		logger.Warnf("Invalid endpoint update: new object is of type %T", newObj)
+		return
+	}
+
+	// If resource version hasn't changed (i.e., on full resync), ignore
+	if oldEndpoints.ResourceVersion >= newEndpoints.ResourceVersion {
+		return
+	}
+
+	logger.Debugf("Endpoints object updated: %s", newEndpoints.Name)
+	a.reloadServiceFromEndpoints(newEndpoints)
+}
+
+// deleteEndpoints is the callback invoked by the Kubernetes cache when an endpoints API resource is deleted.
+func (a *Adapter) deleteEndpoints(obj interface{}) {
+	endpoints, ok := extractDeletedObject(obj).(*k8sapi.Endpoints)
+	if !ok {
+		logger.Warnf("Invalid endpoint deleted: object is of type %T", obj)
+		return
+	}
+
+	logger.Debugf("Endpoints object deleted: %s", endpoints.Name)
+	a.deleteService(endpoints.Name)
+}
+
+// addPod is the callback invoked by the Kubernetes cache when a pod API resource is added.
+func (a *Adapter) addPod(obj interface{}) {
+	pod, ok := obj.(*k8sapi.Pod)
+	if !ok {
+		logger.Warnf("Invalid pod added: object is of type %T", obj)
+		return
+	}
+
+	// Reload any services implemented by the pod
+	services := a.podServices[pod.Name]
+	for service := range services {
+		a.reloadServiceFromCache(service)
+	}
+}
+
+// updatePod is the callback invoked by the Kubernetes cache when a pod API resource is updated.
+func (a *Adapter) updatePod(oldObj, newObj interface{}) {
+	oldPod, ok := oldObj.(*k8sapi.Pod)
+	if !ok {
+		logger.Warnf("Invalid pod update: old object is of type %T", oldObj)
+		return
+	}
+	newPod, ok := newObj.(*k8sapi.Pod)
+	if !ok {
+		logger.Warnf("Invalid pod update: new object is of type %T", newObj)
+		return
+	}
+
+	// If resource version hasn't changed (i.e., on full resync), ignore
+	if oldPod.ResourceVersion >= newPod.ResourceVersion {
+		return
+	}
+
+	// If no labels have changed, ignore
+	if reflect.DeepEqual(oldPod.Labels, newPod.Labels) {
+		return
+	}
+
+	// Reload any services implemented by the pod
+	services := a.podServices[newPod.Name]
+	for service := range services {
+		a.reloadServiceFromCache(service)
+	}
+}
+
+// deletePod is the callback invoked by the Kubernetes cache when a pod API resource is deleted.
+func (a *Adapter) deletePod(obj interface{}) {
+	pod, ok := extractDeletedObject(obj).(*k8sapi.Pod)
+	if !ok {
+		logger.Warnf("Invalid pod deleted: object is of type %T", obj)
+		return
+	}
+
+	delete(a.podServices, pod.Name)
+}
+
+// reloadServiceFromCache rebuilds and stores the service instances for the given service,
+// based on the cached service endpoints and pods resources.
+func (a *Adapter) reloadServiceFromCache(serviceName string) {
+	endpoints := a.getCachedServiceEndpoints(serviceName)
+	if endpoints == nil {
+		logger.Warnf("No endpoints cached for service '%s'", serviceName)
+		return
+	}
+
+	a.reloadServiceFromEndpoints(endpoints)
+}
+
+// reloadServiceFromEndpoints rebuilds and stores the service instances for the given endpoints service,
+// based on the given endpoints information, and cached pod resources.
+func (a *Adapter) reloadServiceFromEndpoints(endpoints *k8sapi.Endpoints) {
+	serviceName := endpoints.Name
+	instances := []*api.ServiceInstance{}
+	pods := datastructures.NewDefaultStringSet()
+
+	for _, subset := range endpoints.Subsets {
+		for _, address := range subset.Addresses {
+			for _, port := range subset.Ports {
+				instance, err := a.createServiceInstance(serviceName, &address, &port)
+				if err != nil {
+					logger.WithError(err).Warnf("Failed creating service '%s' instance for pod %s with address %s and port %s",
+						serviceName, address.TargetRef.Name, address.String(), port.String())
+					continue
+				}
+				instances = append(instances, instance)
+			}
+
+			if address.TargetRef != nil {
+				pods.Add(address.TargetRef.Name)
+			}
+		}
+	}
+
+	prevPods := a.servicePods[endpoints.Name]
+	a.servicePods[endpoints.Name] = pods
+
+	for pod := range prevPods.Difference(pods) {
+		podServices := a.podServices[pod]
+		if podServices != nil {
+			podServices.Remove(endpoints.Name)
+		}
+	}
+	for pod := range pods.Difference(prevPods) {
+		podServices := a.podServices[pod]
+		if podServices == nil {
+			podServices = datastructures.NewDefaultStringSet()
+			a.podServices[pod] = podServices
+		}
+		podServices.Add(endpoints.Name)
+	}
+
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	a.services[endpoints.Name] = instances
+}
+
+// deleteService deletes any stored service instance for the given service.
+func (a *Adapter) deleteService(serviceName string) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	delete(a.services, serviceName)
+}
+
+// createServiceInstance creates a service instance based on the given service name, address and port.
+// Cached pod information is used to build the tags and metadata fields.
+func (a *Adapter) createServiceInstance(serviceName string, address *k8sapi.EndpointAddress, port *k8sapi.EndpointPort) (*api.ServiceInstance, error) {
+
+	// Extract the pod implementing the service
+	var pod *k8sapi.Pod
+	if address.TargetRef != nil {
+		pod = a.getCachedPod(address.TargetRef.Name)
+	}
+
+	return kubepkg.BuildServiceInstance(serviceName, pod, address, port)
+}
+
+// getCachedServiceEndpoints returns the cached endpoints resource for the given service, or nil if doesn't exist.
+func (a *Adapter) getCachedServiceEndpoints(serviceName string) *k8sapi.Endpoints {
+	key, err := cache.MetaNamespaceKeyFunc(&k8sapi.Endpoints{
+		ObjectMeta: k8sapi.ObjectMeta{
+			Namespace: a.namespace,
+			Name:      serviceName,
+		},
+	})
+	if err != nil {
+		return nil
+	}
+	obj, exist, err := a.endpointsCache.GetByKey(key)
+	if err != nil || !exist {
+		return nil
+	}
+	endpoints, ok := obj.(*k8sapi.Endpoints)
+	if !ok {
+		return nil
+	}
+	return endpoints
+}
+
+// getCachedPod returns the cached pod resource for the given pod name, or nil if doesn't exist.
+func (a *Adapter) getCachedPod(podName string) *k8sapi.Pod {
+	key, err := cache.MetaNamespaceKeyFunc(&k8sapi.Pod{
+		ObjectMeta: k8sapi.ObjectMeta{
+			Namespace: a.namespace,
+			Name:      podName,
+		},
+	})
+	if err != nil {
+		return nil
+	}
+	obj, exist, err := a.podCache.GetByKey(key)
+	if err != nil || !exist {
+		return nil
+	}
+	pod, ok := obj.(*k8sapi.Pod)
+	if !ok {
+		return nil
+	}
+	return pod
+}
+
+// extractDeletedObject is used within "deleteXXX" cache callbacks, where the provided
+// object may be a wrapper (DeletedFinalStateUnknown) around the actual deleted object.
+func extractDeletedObject(obj interface{}) interface{} {
+	deleted, ok := obj.(cache.DeletedFinalStateUnknown)
+	if ok {
+		return deleted.Obj
+	}
+	return obj
+}

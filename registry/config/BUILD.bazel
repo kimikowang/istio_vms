@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "flags.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//registry/cluster:go_default_library",
+        "@com_github_urfave_cli//:go_default_library",
+    ],
+)

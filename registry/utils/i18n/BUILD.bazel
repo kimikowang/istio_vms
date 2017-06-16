@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "i18n.go",
+        "message_ids.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_Sirupsen_logrus//:go_default_library",
+        "@com_github_ant0ine_go_json_rest//rest:go_default_library",
+        "@com_github_nicksnyder_go_i18n//i18n:go_default_library",
+    ],
+)

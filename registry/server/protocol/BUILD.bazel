@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "descriptor.go",
+        "operations.go",
+        "protocol.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//registry/server/env:go_default_library",
+        "@com_github_ant0ine_go_json_rest//rest:go_default_library",
+    ],
+)

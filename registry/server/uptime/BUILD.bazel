@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "endpoints.go",
+        "routes.go",
+        "uptime_handler.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/version:go_default_library",
+        "//registry/utils/health:go_default_library",
+        "@com_github_ant0ine_go_json_rest//rest:go_default_library",
+        "@com_github_shirou_gopsutil//load:go_default_library",
+    ],
+)

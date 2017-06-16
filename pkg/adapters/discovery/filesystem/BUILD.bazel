@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["filesystem.go"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api:go_default_library",
+        "//pkg/auth:go_default_library",
+        "//registry/server/protocol/amalgam8:go_default_library",
+        "//registry/utils/logging:go_default_library",
+        "@com_github_Sirupsen_logrus//:go_default_library",
+    ],
+)

@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "catalog.go",
+        "catalog_factory.go",
+        "catalog_map.go",
+        "config.go",
+        "inmem_catalog.go",
+        "service.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/auth:go_default_library",
+        "//registry/replication:go_default_library",
+        "//registry/utils/database:go_default_library",
+        "//registry/utils/logging:go_default_library",
+        "@com_github_Sirupsen_logrus//:go_default_library",
+        "@com_github_rcrowley_go_metrics//:go_default_library",
+    ],
+)
