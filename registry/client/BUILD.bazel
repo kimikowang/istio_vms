@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "client.go",
+        "errors.go",
+        "filter.go",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api:go_default_library",
+        "//registry/server/protocol/amalgam8:go_default_library",
+    ],
+)
