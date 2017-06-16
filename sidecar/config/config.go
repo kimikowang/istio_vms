@@ -205,7 +205,7 @@ func New(context *cli.Context) (*Config, error) {
 	return &config, nil
 }
 
-func (c *Config) loadFromFile(configFile string) error {
+func (c *Config) LoadFromFile(configFile string) error {
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return err
