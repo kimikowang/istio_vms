@@ -131,16 +131,7 @@ func (routes *Routes) listServices(w rest.ResponseWriter, r *rest.Request) {
 		listRes := &ServiceObjectsList{Services: make([]*Service, len(services), len(services))}
 
 		for index, svc := range services {
-			copied, err := copyServiceObject(svc)
-			if err != nil {
-				routes.logger.WithFields(log.Fields{
-					"namespace": r.Env[env.Namespace],
-					"error":     err,
-				}).Warnf("Failed to lookup service %s", svc.ServiceName)
-
-				i18n.Error(r, w, http.StatusInternalServerError, i18n.ErrorFilterGeneric)
-				return
-			}
+			copied := copyServiceObject(svc)
 			listRes.Services[index] = copied
 		}
 

@@ -66,24 +66,26 @@ func extractFields(r *rest.Request) ([]string, error) {
 	return fields, nil
 }
 
-func copyServiceObject(s *store.Service) (*Service, error) {
+func copyServiceObject(s *store.Service) *Service {
 	svc := &Service{
 		ServiceName: s.ServiceName,
 		Address: s.Address,
-		Ports: CopyPortsList(s.Ports),
+		Ports: copyPortsList(s.Ports),
 		ExternalName: s.ExternalName,
 	}
 
-	return svc, nil
+	return svc
 }
 
 func copyInstanceWithFilter(sname string, si *store.ServiceInstance, fields []string) (*ServiceInstance, error) {
 	inst := &ServiceInstance{
 		ID:          si.ID,
 		ServiceName: sname,
+		Service: copyServiceObject(si.Service),
 		Endpoint: &InstanceAddress{
 			Type:  si.Endpoint.Type,
 			Value: si.Endpoint.Value,
+			ServicePort: copyPort(si.Endpoint.ServicePort),
 		},
 		Status:        si.Status,
 		Tags:          si.Tags,
@@ -107,16 +109,16 @@ func copyInstanceWithFilter(sname string, si *store.ServiceInstance, fields []st
 	return inst, nil
 }
 
-func CopyPortsList(pl store.PortList) PortList {
+func copyPortsList(pl store.PortList) PortList {
 	out := make(PortList, len(pl), len(pl))
 	for idx, p := range pl {
-		out[idx] = CopyPort(p)
+		out[idx] = copyPort(p)
 	}
 
 	return out
 }
 
-func CopyPort(p *store.Port) *Port {
+func copyPort(p *store.Port) *Port {
 	return &Port{
 		Name: p.Name,
 		Port: p.Port,
